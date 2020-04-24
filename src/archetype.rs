@@ -22,7 +22,7 @@ use core::ptr::{self, NonNull};
 
 use hashbrown::HashMap;
 
-use crate::borrow::AtomicBorrow;
+use crate::borrow::Borrow;
 use crate::query::Fetch;
 use crate::{Access, Component, Query};
 
@@ -318,14 +318,14 @@ impl Drop for Archetype {
 
 struct TypeState {
     offset: usize,
-    borrow: AtomicBorrow,
+    borrow: Borrow,
 }
 
 impl TypeState {
     fn new(offset: usize) -> Self {
         Self {
             offset,
-            borrow: AtomicBorrow::new(),
+            borrow: Borrow::new(),
         }
     }
 }

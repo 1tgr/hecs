@@ -641,12 +641,29 @@ impl From<MissingComponent> for ComponentError {
     }
 }
 
-/// Types that can be components, implemented automatically for all `Send + Sync + 'static` types
-///
-/// This is just a convenient shorthand for `Send + Sync + 'static`, and never needs to be
-/// implemented manually.
-pub trait Component: Send + Sync + 'static {}
-impl<T: Send + Sync + 'static> Component for T {}
+mod atomic {
+    /// Types that can be components, implemented automatically for all `Send + Sync + 'static` types
+    ///
+    /// This is just a convenient shorthand for `Send + Sync + 'static`, and never needs to be
+    /// implemented manually.
+    pub trait Component: Send + Sync + 'static {}
+    impl<T: Send + Sync + 'static> Component for T {}
+}
+
+mod single_threaded {
+    /// Types that can be components, implemented automatically for all `'static` types
+    ///
+    /// This is just a convenient shorthand for `'static`, and never needs to be
+    /// implemented manually.
+    pub trait Component: 'static {}
+    impl<T: 'static> Component for T {}
+}
+
+#[cfg(not(feature = "single_threaded"))]
+pub use atomic::Component;
+
+#[cfg(feature = "single_threaded")]
+pub use single_threaded::Component;
 
 /// Iterator over all of a world's entities
 pub struct Iter<'a> {

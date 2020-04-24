@@ -14,49 +14,110 @@
 
 use core::ops::{Deref, DerefMut};
 use core::ptr::NonNull;
-use core::sync::atomic::{AtomicUsize, Ordering};
 
 use crate::archetype::Archetype;
 use crate::{Component, MissingComponent};
 
-pub struct AtomicBorrow(AtomicUsize);
+#[cfg_attr(feature = "single_threaded", allow(dead_code))]
+mod atomic {
+    use crate::borrow::UNIQUE_BIT;
+    use core::sync::atomic::{AtomicUsize, Ordering};
 
-impl AtomicBorrow {
-    pub const fn new() -> Self {
-        Self(AtomicUsize::new(0))
-    }
+    pub struct Borrow(AtomicUsize);
 
-    pub fn borrow(&self) -> bool {
-        let value = self.0.fetch_add(1, Ordering::Acquire).wrapping_add(1);
-        if value == 0 {
-            // Wrapped, this borrow is invalid!
-            core::panic!()
+    impl Borrow {
+        pub const fn new() -> Self {
+            Self(AtomicUsize::new(0))
         }
-        if value & UNIQUE_BIT != 0 {
-            self.0.fetch_sub(1, Ordering::Release);
-            false
-        } else {
-            true
+
+        pub fn borrow(&self) -> bool {
+            let value = self.0.fetch_add(1, Ordering::Acquire).wrapping_add(1);
+            if value == 0 {
+                // Wrapped, this borrow is invalid!
+                core::panic!()
+            }
+            if value & UNIQUE_BIT != 0 {
+                self.0.fetch_sub(1, Ordering::Release);
+                false
+            } else {
+                true
+            }
         }
-    }
 
-    pub fn borrow_mut(&self) -> bool {
-        self.0
-            .compare_exchange(0, UNIQUE_BIT, Ordering::Acquire, Ordering::Relaxed)
-            .is_ok()
-    }
+        pub fn borrow_mut(&self) -> bool {
+            self.0
+                .compare_exchange(0, UNIQUE_BIT, Ordering::Acquire, Ordering::Relaxed)
+                .is_ok()
+        }
 
-    pub fn release(&self) {
-        let value = self.0.fetch_sub(1, Ordering::Release);
-        debug_assert!(value != 0, "unbalanced release");
-        debug_assert!(value & UNIQUE_BIT == 0, "shared release of unique borrow");
-    }
+        pub fn release(&self) {
+            let value = self.0.fetch_sub(1, Ordering::Release);
+            debug_assert!(value != 0, "unbalanced release");
+            debug_assert!(value & UNIQUE_BIT == 0, "shared release of unique borrow");
+        }
 
-    pub fn release_mut(&self) {
-        let value = self.0.fetch_and(!UNIQUE_BIT, Ordering::Release);
-        debug_assert_ne!(value & UNIQUE_BIT, 0, "unique release of shared borrow");
+        pub fn release_mut(&self) {
+            let value = self.0.fetch_and(!UNIQUE_BIT, Ordering::Release);
+            debug_assert_ne!(value & UNIQUE_BIT, 0, "unique release of shared borrow");
+        }
     }
 }
+
+#[cfg_attr(not(feature = "single_threaded"), allow(dead_code))]
+mod single_threaded {
+    use crate::borrow::UNIQUE_BIT;
+    use core::cell::Cell;
+
+    pub struct Borrow(Cell<usize>);
+
+    impl Borrow {
+        pub const fn new() -> Self {
+            Self(Cell::new(0))
+        }
+
+        pub fn borrow(&self) -> bool {
+            let value = self.0.get().wrapping_add(1);
+            if value == 0 {
+                // Wrapped, this borrow is invalid!
+                core::panic!()
+            }
+            if value & UNIQUE_BIT != 0 {
+                false
+            } else {
+                self.0.set(value);
+                true
+            }
+        }
+
+        pub fn borrow_mut(&self) -> bool {
+            if self.0.get() == 0 {
+                self.0.set(UNIQUE_BIT);
+                true
+            } else {
+                false
+            }
+        }
+
+        pub fn release(&self) {
+            let value = self.0.get();
+            debug_assert!(value != 0, "unbalanced release");
+            debug_assert!(value & UNIQUE_BIT == 0, "shared release of unique borrow");
+            self.0.set(value - 1);
+        }
+
+        pub fn release_mut(&self) {
+            let value = self.0.get();
+            debug_assert_ne!(value & UNIQUE_BIT, 0, "unique release of shared borrow");
+            self.0.set(value & !UNIQUE_BIT);
+        }
+    }
+}
+
+#[cfg(not(feature = "single_threaded"))]
+pub use atomic::Borrow;
+
+#[cfg(feature = "single_threaded")]
+pub use single_threaded::Borrow;
 
 const UNIQUE_BIT: usize = !(usize::max_value() >> 1);
 
