@@ -1,4 +1,5 @@
 use core::fmt;
+use core::sync::atomic::{AtomicU32, Ordering};
 use hashbrown::HashMap;
 #[cfg(feature = "std")]
 use std::error::Error;
@@ -12,7 +13,8 @@ pub struct Entity(u32);
 impl Entity {
     #[allow(missing_docs)]
     pub fn new() -> Self {
-        Self(rand::random::<u32>())
+        static NEXT_ID: AtomicU32 = AtomicU32::new(1);
+        Self(NEXT_ID.fetch_add(1, Ordering::SeqCst))
     }
 
     #[allow(missing_docs)]
