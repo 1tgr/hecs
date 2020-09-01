@@ -669,12 +669,9 @@ impl From<MissingComponent> for ComponentError {
     }
 }
 
-/// Types that can be components, implemented automatically for all `Send + Sync + 'static` types
-///
-/// This is just a convenient shorthand for `Send + Sync + 'static`, and never needs to be
-/// implemented manually.
-pub trait Component: Send + Sync + 'static {}
-impl<T: Send + Sync + 'static> Component for T {}
+/// Types that can be components
+pub trait Component: 'static {}
+impl<T: 'static> Component for T {}
 
 /// Iterator over all of a world's entities
 pub struct Iter<'a> {
