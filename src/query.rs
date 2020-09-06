@@ -237,20 +237,9 @@ impl<'a, T: Component> Fetch<'a> for FetchMut<T> {
 }
 
 #[allow(missing_docs)]
-pub struct Mutated<'a, T> {
-    value: &'a T,
-}
+pub struct Mutated<T>(PhantomData<T>);
 
-impl<'a, T: Component> Deref for Mutated<'a, T> {
-    type Target = T;
-
-    #[inline]
-    fn deref(&self) -> &T {
-        self.value
-    }
-}
-
-impl<'a, T: Component> Query for Mutated<'a, T> {
+impl<T: Component> Query for Mutated<T> {
     type Fetch = FetchMutated<T>;
 }
 
@@ -258,7 +247,7 @@ impl<'a, T: Component> Query for Mutated<'a, T> {
 pub struct FetchMutated<T>(NonNull<T>, NonNull<bool>);
 
 impl<'a, T: Component> Fetch<'a> for FetchMutated<T> {
-    type Item = Mutated<'a, T>;
+    type Item = &'a T;
 
     fn access(archetype: &Archetype) -> Option<Access> {
         if archetype.has::<T>() {
@@ -297,25 +286,14 @@ impl<'a, T: Component> Fetch<'a> for FetchMutated<T> {
         self.1 = NonNull::new_unchecked(self.1.as_ptr().add(1));
         let value = self.0.as_ptr();
         self.0 = NonNull::new_unchecked(value.add(1));
-        Mutated { value: &*value }
+        &*value
     }
 }
 
 #[allow(missing_docs)]
-pub struct Added<'a, T> {
-    value: &'a T,
-}
+pub struct Added<T>(PhantomData<T>);
 
-impl<'a, T: Component> Deref for Added<'a, T> {
-    type Target = T;
-
-    #[inline]
-    fn deref(&self) -> &T {
-        self.value
-    }
-}
-
-impl<'a, T: Component> Query for Added<'a, T> {
+impl<T: Component> Query for Added<T> {
     type Fetch = FetchAdded<T>;
 }
 
@@ -323,7 +301,7 @@ impl<'a, T: Component> Query for Added<'a, T> {
 pub struct FetchAdded<T>(NonNull<T>, NonNull<bool>);
 
 impl<'a, T: Component> Fetch<'a> for FetchAdded<T> {
-    type Item = Added<'a, T>;
+    type Item = &'a T;
 
     fn access(archetype: &Archetype) -> Option<Access> {
         if archetype.has::<T>() {
@@ -360,25 +338,14 @@ impl<'a, T: Component> Fetch<'a> for FetchAdded<T> {
         self.1 = NonNull::new_unchecked(self.1.as_ptr().add(1));
         let value = self.0.as_ptr();
         self.0 = NonNull::new_unchecked(value.add(1));
-        Added { value: &*value }
+        &*value
     }
 }
 
 #[allow(missing_docs)]
-pub struct Changed<'a, T> {
-    value: &'a T,
-}
+pub struct Changed<T>(PhantomData<T>);
 
-impl<'a, T: Component> Deref for Changed<'a, T> {
-    type Target = T;
-
-    #[inline]
-    fn deref(&self) -> &T {
-        self.value
-    }
-}
-
-impl<'a, T: Component> Query for Changed<'a, T> {
+impl<T: Component> Query for Changed<T> {
     type Fetch = FetchChanged<T>;
 }
 
@@ -386,7 +353,7 @@ impl<'a, T: Component> Query for Changed<'a, T> {
 pub struct FetchChanged<T>(NonNull<T>, NonNull<bool>, NonNull<bool>);
 
 impl<'a, T: Component> Fetch<'a> for FetchChanged<T> {
-    type Item = Changed<'a, T>;
+    type Item = &'a T;
 
     fn access(archetype: &Archetype) -> Option<Access> {
         if archetype.has::<T>() {
@@ -427,7 +394,7 @@ impl<'a, T: Component> Fetch<'a> for FetchChanged<T> {
         self.2 = NonNull::new_unchecked(self.2.as_ptr().add(1));
         let value = self.0.as_ptr();
         self.0 = NonNull::new_unchecked(value.add(1));
-        Changed { value: &*value }
+        &*value
     }
 }
 
